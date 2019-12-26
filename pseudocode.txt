@@ -1,0 +1,158 @@
+
+Aplikasi Pencarian Wikipedia
+KAMUS
+    BASE_SEARCH,BASE_DETAIL: String 
+    Result: Struct{
+        title: String
+        pageid: integer
+        summary: String
+    }
+    List: ArrayList
+    Keyword: String
+    Response: String
+
+    FUNCTION run(url: String) -> String
+        ALGORITMA
+            response <- HTTPREQUEST(url)
+            output("Menghubungkan ke Wikipedia.org")
+            IF response
+                RETURN response
+            ELSE
+                output(ERROR MESSAGE OF response)
+                RETURN null
+        END
+    
+    FUNCTION responseHandler(response: String)
+        KAMUS
+            searchIsFound: Boolean <- false
+            json,query: JSONOBJECT
+            search: JSONARRAY
+            i: integer
+        ALGORITMA
+            json <- JSONOBJECT(response)
+            IF json.has("query")
+                query <- json.getJSONOBJECT("query")
+                IF query.has("search")
+                    List.clear()
+                    searchIsFound <- true
+                    search <- query.getJSONARRAY("search")
+                    FOR i TO i < search.length
+                        res: Result <- Result
+                        row: JSONOBJECT <- search.getJSONOBJECT(i)
+                        res.title <- row.getString(")
+                        res.title <- row.getString("title")
+                        res.pageid <- row.getInt("pageid")
+                        res.summary <- null
+                        list.add(res)
+                    ENDFOR
+                ENDIF
+            ENDIF
+            IF searchIsFound
+                displayLastSearch(false)
+            ELSE
+                output("Hasil Tidak Ditemukan")
+            ENDIF
+
+    FUNCTION getUserKeyword() -> String
+        ALGORITMA
+            RETURN input("Masukkan Keyword")
+        END
+
+    FUNCTION getUserChoice() -> String
+        ALGORITMA
+            RETURN input("[q] Quit [r] Retry [l] Hasil terakhir")
+        END
+
+    FUNCTION displayLastSearch(showKeyword: Boolean)
+        KAMUS
+            iteration: integer <- 0
+        ALGORITMA
+            output("Hasil Pencari")
+            IF showKeyword
+                output(Keyword)
+            WHILE iteration < list.size
+                result: Result <- list[iteration]
+                output(result.title)
+                iteration <- iteration + 1
+            ENDWHILE
+            detailMenu();
+        END
+
+    FUNCTION detailMenu()
+        KAMUS
+            answer: integer
+            selected: Result
+            getDetailIsOk: Boolean
+            response: String
+        ALGORITMA
+            answer <- input("Silakan pilih salah satu:")
+            selected <- list[answer]
+            IF selected = null
+                output("Yang anda pilih tidak ada didaftar.")
+                RETURN
+            ENDIF
+            output(selected.title)
+            getDetailIsOk <- false
+            IF selected.summary = null
+                response <- run(BASE_DETAIL+selected.pageid)
+                IF response != null 
+                    json: JSONOBJECT <- JSONOBJECT(response)
+                    IF json.has("query")
+                        query: json.getJSONOBJECT("query")
+                        IF query.has("pages")
+                            pages: JSONOBJECT <- query.getJSONOBJECT("pages")
+                            IF pages.has(selected.pageid)
+                                page: JSONOBJECT <- pages.getJSONOBJECT(selected.pageid)
+                                selected.summary = page.getString("extract")
+                                list[answer] <- selected
+                                getDetailIsOk <- true
+                            ENDIF
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ELSE
+                getDetailIsOk <- true
+            ENDIF
+            IF getDetailIsOk
+                output(list[answer].summary)
+            ELSE
+                output("Tidak dapat menemukan detailnya. Silakan coba lagi.")
+
+    FUNCTION mainMenu()
+        KAMUS
+            choice: String
+        ALGORITMA
+            choice <- getUserChoice()
+            CASE choice
+                "q": quit()
+                "l": detail()
+                OTHERWISE: retry()
+            ENDCASE
+        END 
+
+    FUNCTION quit()
+        ALGORITMA
+            output("GOOD BEY")
+            SYSTEM.EXIT(0)
+        END
+    
+    FUNCTION retry()
+        ALGORITMA
+            TRY 
+                SYSTEM.RESTART()
+            CATCH e: Exeptions
+                output("GOOD BEY")
+                SYSTEM.EXIT(0)
+        END
+
+ALGORITMA
+    BASE_DETAIL <- "https://en.wikipedia.org/w/api.php?action=query&list=search&utf8=&format=json&srsearch="
+    BASE_SEARCH <- "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&pageids="
+    output("Aplikasi Pencari mikipedia")
+    Keyword <- getUserKeyword()
+    Response <- run(BASE_SEARCH + Keyword)
+    IF Response != null
+        responseHandler(response)
+    ENDIF
+    mainMenu()
+END
